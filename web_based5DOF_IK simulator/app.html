@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>5DOF Robot Arm IK Visualization</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      input[type="range"] {
+        width: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <div>
+        <label>X: <span id="x-value">0.3</span></label>
+        <input
+          type="range"
+          id="x-slider"
+          min="-0.5"
+          max="0.5"
+          step="0.01"
+          value="0.3"
+        />
+      </div>
+      <div>
+        <label>Y: <span id="y-value">0.2</span></label>
+        <input
+          type="range"
+          id="y-slider"
+          min="-0.5"
+          max="0.5"
+          step="0.01"
+          value="0.2"
+        />
+      </div>
+      <div>
+        <label>Z: <span id="z-value">0.3</span></label>
+        <input
+          type="range"
+          id="z-slider"
+          min="0"
+          max="0.7"
+          step="0.01"
+          value="0.3"
+        />
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+      // Inline RobotArm class for simplicity
+      class RobotArm {
+        constructor(scene) {
+          this.scene = scene;
+          this.links = [];
+          this.joints = [];
+
+          // Robot dimensions and colors
+          const baseColor = 0x444444;
+          const jointColor = 0x2288cc;
+          const linkColor = 0x999999;
+
+          // Create base
+          const baseGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 32);
+          const baseMaterial = new THREE.MeshPhongMaterial({
+            color: baseColor,
+          });
+          this.base = new THREE.Mesh(baseGeometry, baseMaterial);
+          this.base.position.set(0, 0, 0);
+          this.scene.add(this.base);
+
+          // Create joints and links
+          const jointGeometry = new THREE.SphereGeometry(0.035, 32, 32);
+          const jointMaterial = new THREE.MeshPhongMaterial({
+            color: jointColor,
+          });
+
+          // DH parameters (simplified version for visualization)
+          this.dhParams = [
+            [0, Math.PI / 2, 0.1, 0], // Joint 1
+            [0.2, 0, 0, 0], // Joint 2
+            [0.2, 0, 0, 0], // Joint 3
+            [0, Math.PI / 2, 0, 0], // Joint 4
+            [0, 0, 0.1, 0], // Joint 5
+          ];
+
+          // Create joints
+          for (let i = 0; i < 5; i++) {
+            const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+            this.joints.push(joint);
+            this.scene.add(joint);
+
+            // Create link (except for the last joint)
+            if (i < 4) {
+              const linkGeometry = new THREE.CylinderGeometry(
+                0.02,
+                0.02,
+                0.2,
+                16
+              );
+              const linkMaterial = new THREE.MeshPhongMaterial({
+                color: linkColor,
+              });
+              const link = new THREE.Mesh(linkGeometry, linkMaterial);
+              this.links.push(link);
+              this.scene.add(link);
+            }
+          }
+
+          // Create end effector
+          const eeGeometry = new THREE.ConeGeometry(0.03, 0.08, 16);
+          const eeMaterial = new THREE.MeshPhongMaterial({ color: 0xff6666 });
+          this.endEffector = new THREE.Mesh(eeGeometry, eeMaterial);
+          this.scene.add(this.endEffector);
+
+          // Initial position
+          this.updatePositions([0, 0, 0, 0, 0]);
+        }
+
+        updatePositions(jointPositions) {
+          // Convert array of positions to THREE.Vector3 objects
+          const positions = jointPositions.map((pos) => {
+            if (Array.isArray(pos)) {
+              return new THREE.Vector3(pos[0], pos[2], pos[1]); // Adjust coordinates for visualization
+            }
+            return pos;
+          });
+
+          // Update joint positions
+          for (let i = 0; i < positions.length - 1; i++) {
+            this.joints[i].position.copy(positions[i]);
+
+            // Update link position and orientation
+            if (i < positions.length - 2) {
+              const link = this.links[i];
+              const start = positions[i];
+              const end = positions[i + 1];
+              const midpoint = new THREE.Vector3()
+                .addVectors(start, end)
+                .multiplyScalar(0.5);
+
+              // Set link position to midpoint
+              link.position.copy(midpoint);
+
+              // Orient link to point from start to end
+              const direction = new THREE.Vector3().subVectors(end, start);
+              const length = direction.length();
+
+              // Scale link length
+              link.scale.set(1, length / 0.2, 1);
+
+              // Rotate link to align with direction
+              if (length > 0.001) {
+                const arrow = new THREE.ArrowHelper(
+                  direction.clone().normalize(),
+                  start
+                );
+                link.quaternion.copy(arrow.quaternion);
+              }
+            }
+          }
+
+          // Update end effector position
+          if (positions.length > 0) {
+            this.endEffector.position.copy(positions[positions.length - 1]);
+
+            // Point end effector outward from the last link
+            if (positions.length > 1) {
+              const direction = new THREE.Vector3().subVectors(
+                positions[positions.length - 1],
+                positions[positions.length - 2]
+              );
+              if (direction.length() > 0.001) {
+                const arrow = new THREE.ArrowHelper(
+                  direction.clone().normalize(),
+                  positions[positions.length - 1]
+                );
+                this.endEffector.quaternion.copy(arrow.quaternion);
+              }
+            }
+          }
+        }
+      }
+
+      // Offline robot arm simulation
+      function solveIK(targetPosition) {
+        return new Promise((resolve) => {
+          // This is a simplified kinematics simulation - not real IK
+          const basePos = [0, 0, 0];
+
+          // Very simple approximation - just for visualization
+          const distance = Math.sqrt(
+            targetPosition[0] * targetPosition[0] +
+              targetPosition[1] * targetPosition[1] +
+              targetPosition[2] * targetPosition[2]
+          );
+
+          // Calculate intermediate points (simple approximation)
+          const scale = Math.min(distance / 0.6, 1);
+          const dir = [
+            (targetPosition[0] * scale) / Math.max(distance, 0.01),
+            (targetPosition[1] * scale) / Math.max(distance, 0.01),
+            (targetPosition[2] * scale) / Math.max(distance, 0.01),
+          ];
+
+          const joint1 = [0, 0, 0.1];
+          const joint2 = [dir[0] * 0.2, dir[1] * 0.2, 0.1 + dir[2] * 0.1];
+          const joint3 = [dir[0] * 0.4, dir[1] * 0.4, 0.1 + dir[2] * 0.2];
+          const joint4 = [dir[0] * 0.5, dir[1] * 0.5, 0.1 + dir[2] * 0.3];
+          const endPoint = targetPosition;
+
+          setTimeout(() => {
+            resolve([basePos, joint1, joint2, joint3, joint4, endPoint]);
+          }, 10);
+        });
+      }
+
+      // Scene setup
+      let scene, camera, renderer, robotArm;
+      let targetPosition = [0.3, 0.2, 0.3];
+      let targetMesh;
+
+      function init() {
+        console.log("Initializing 3D scene...");
+
+        // Create scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+
+        // Create camera
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0.7, 0.7, 0.7);
+        camera.lookAt(0, 0.2, 0);
+
+        // Create renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x666666);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Add grid for reference
+        const gridHelper = new THREE.GridHelper(1, 10);
+        scene.add(gridHelper);
+
+        // Create coordinate axes
+        const axesHelper = new THREE.AxesHelper(0.3);
+        scene.add(axesHelper);
+
+        console.log("Creating robot arm...");
+        // Create robot arm
+        robotArm = new RobotArm(scene);
+
+        // Create target indicator
+        const targetGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+        const targetMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.7,
+        });
+        targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
+        targetMesh.position.set(
+          targetPosition[0],
+          targetPosition[2],
+          targetPosition[1]
+        ); // Adjust coordinates
+        scene.add(targetMesh);
+
+        // Set up UI controls
+        setupControls();
+
+        // Handle window resize
+        window.addEventListener("resize", onWindowResize);
+
+        // Initial IK solve
+        updateTarget(targetPosition);
+
+        console.log("Starting animation loop...");
+        // Start animation loop
+        animate();
+      }
+
+      function setupControls() {
+        // Set up slider controls
+        const xSlider = document.getElementById("x-slider");
+        const ySlider = document.getElementById("y-slider");
+        const zSlider = document.getElementById("z-slider");
+        const xValue = document.getElementById("x-value");
+        const yValue = document.getElementById("y-value");
+        const zValue = document.getElementById("z-value");
+
+        xSlider.addEventListener("input", () => {
+          targetPosition[0] = parseFloat(xSlider.value);
+          xValue.textContent = targetPosition[0].toFixed(2);
+          updateTarget(targetPosition);
+        });
+
+        ySlider.addEventListener("input", () => {
+          targetPosition[1] = parseFloat(ySlider.value);
+          yValue.textContent = targetPosition[1].toFixed(2);
+          updateTarget(targetPosition);
+        });
+
+        zSlider.addEventListener("input", () => {
+          targetPosition[2] = parseFloat(zSlider.value);
+          zValue.textContent = targetPosition[2].toFixed(2);
+          updateTarget(targetPosition);
+        });
+      }
+
+      function updateTarget(position) {
+        // Update target visual indicator
+        targetMesh.position.set(position[0], position[2], position[1]); // Adjust coordinates
+
+        // Solve IK
+        solveIK(position).then((jointPositions) => {
+          robotArm.updatePositions(jointPositions);
+        });
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+
+      // Initialize the app when window loads
+      window.addEventListener("load", init);
+      console.log("Script loaded, waiting for window to load...");
+    </script>
+  </body>
+</html>
