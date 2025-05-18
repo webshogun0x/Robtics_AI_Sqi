@@ -1,0 +1,13 @@
+GPIO Access in C/C++
+
+Use libraries like:
+
+    pigpio: for PWM, GPIO, etc.
+
+    bcm2835: lower-level access
+
+    wiringPi: legacy but still used (archived)
+
+   $ sudo apt install pigpio
+
+   $ g++ mygpio.cpp -lpigpio -lrt -lpthread -o mygpio
