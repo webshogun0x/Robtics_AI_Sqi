@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Robot</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Delivery Robot Dashboard</h1>
+    <div>
+        <h2>Login</h2>
+        <form id="loginForm">
+            <label>Username: <input type="text" name="user"></label><br>
+            <label>Password: <input type="password" name="pass"></label><br>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+    <div id="dashboard" style="display:none">
+        <h2>Set Delivery</h2>
+        <form id="deliveryForm">
+            <label>Destination: <input type="text" name="destination"></label><br>
+            <label>Password: <input type="text" name="password"></label><br>
+            <button type="submit">Set Delivery</button>
+        </form>
+        <h2>Chat</h2>
+        <div id="chatMessages"></div>
+        <input type="text" id="chatInput">
+        <button onclick="sendChat()">Send</button>
+        <h2>Status</h2>
+        <p id="status"></p>
+        <h2>Logs</h2>
+        <pre id="logs"></pre>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "software_io",
+			"path": "software_io"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"sstream": "cpp"
+		}
+	}
+}
