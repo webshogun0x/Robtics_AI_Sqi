@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Logs - Lab Inventory</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .logs-container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .logs-table th, .logs-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .logs-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .action-take {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .action-return {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .nav-links {
+            margin-bottom: 20px;
+        }
+        
+        .nav-links a {
+            display: inline-block;
+            padding: 10px 15px;
+            margin-right: 10px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        
+        .nav-links a:hover {
+            background: #0056b3;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="logs-container">
+        <div class="nav-links">
+            <a href="/">← Back to Inventory</a>
+            <a href="/export">📥 Export CSV</a>
+        </div>
+        
+        <h1>📋 Activity Logs</h1>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number">{{ logs|length }}</div>
+                <div>Recent Activities</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ logs|selectattr('action', 'equalto', 'take')|list|length }}</div>
+                <div>Items Taken</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ logs|selectattr('action', 'equalto', 'return')|list|length }}</div>
+                <div>Items Returned</div>
+            </div>
+        </div>
+        
+        {% if logs %}
+        <table class="logs-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Component</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ log.user }}</td>
+                    <td>
+                        <span class="action-{{ log.action }}">
+                            {% if log.action == 'take' %}📤 TAKE{% else %}📥 RETURN{% endif %}
+                        </span>
+                    </td>
+                    <td>{{ log.component }}</td>
+                    <td>{{ log.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: #666;">
+            <h3>No activity logs found</h3>
+            <p>Start using the inventory system to see logs here.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

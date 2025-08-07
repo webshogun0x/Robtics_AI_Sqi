@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Credentials
+.env
+*.env
+reconciliation/config.json
+service_account.json
+
+# Output files
+/output/
+*.csv
+
+# firmware secret
+firmware/include/secret.h
+
+output

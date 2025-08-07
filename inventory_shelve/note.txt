@@ -1,0 +1,124 @@
+✅ Final System Architecture Overview
+🔧 Core Components
+Component	Purpose
+ESP32 + Lock	Shelf locking via HTTP request
+Lab PC (SQLite)	Hosts Flask web app, local inventory DB, logging
+Google Forms/Sheets	Secondary inventory tracking, photo logging
+Student Device	For scanning QR and filling Google Form
+
+🌐 Web App (Flask on Lab PC)
+Features:
+🖥️ Main Dashboard
+Default View: Take Components
+
+Toggle: Take / Return button (toggles between two forms)
+
+Common fields:
+
+Category (dropdown)
+
+Component (dropdown filtered by category)
+
+Quantity
+
+(Optional) Comments or notes
+
+Submit button: Unlock Shelf & Log Entry
+
+Sends unlock command to ESP32
+
+Logs action in SQLite (user, time, item, qty, action type: take/return)
+
+🔄 Workflow
+Student logs in (timestamp logged).
+
+Chooses Take or Return.
+
+Selects category, item, and quantity.
+
+Clicks Unlock.
+
+Flask app:
+
+Sends unlock command to ESP32.
+
+Updates SQLite inventory (adds or subtracts quantity).
+
+Logs student action with timestamp.
+
+Student scans container QR → fills Google Form:
+
+Uploads photo of item taken or returned.
+
+Confirms quantity.
+
+Updates Google Sheet.
+
+🗃️ Database Design (SQLite)
+📄 inventory Table:
+Field	Type	Notes
+id	INTEGER	Primary key
+name	TEXT	Component name
+category	TEXT	Component category
+quantity	INTEGER	Current quantity
+consumable	BOOLEAN	TRUE/FALSE
+
+📄 logs Table:
+Field	Type	Notes
+id	INTEGER	Primary key
+user	TEXT	Student username
+action	TEXT	"take" or "return"
+component	TEXT	Component name
+quantity	INTEGER	Quantity taken/returned
+timestamp	DATETIME	Auto-filled at form submit
+
+✅ Google Sheet/Forms Role
+Each QR code on a container:
+
+Links to a short Google Form.
+
+Student selects/inputs:
+
+Quantity taken or returned.
+
+Uploads photo (optional but encouraged).
+
+Form updates Google Sheet tied to category.
+
+Google Apps Script can monitor for:
+
+Inconsistent entries.
+
+Low stock alerts.
+
+Weekly email with summary.
+
+🔄 Weekly Reconciliation Process
+Script or manual export SQLite inventory as CSV.
+
+Compare with Google Sheet inventory manually or via a comparison script.
+
+Do physical count to resolve discrepancies.
+
+Use comparison logs to trace mismatches by user, time, and item.
+
+🛠️ Suggestions for Implementation
+Flask App Enhancements:
+
+Use AJAX to switch between take/return forms without reload.
+
+Use a single form with a hidden field (action=take or return) and toggle UI.
+
+Sync or Export Options:
+
+Add a weekly export button to download SQLite logs or inventory as CSV.
+
+Create a script to sync Google Sheets data to local SQLite if needed.
+
+Google Forms:
+
+Short forms with pre-filled component name based on QR link.
+
+Use name, quantity, and photo fields.
+
+Form responses go to Sheets and are timestamped.
